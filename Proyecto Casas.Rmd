@@ -67,7 +67,12 @@ También se obtienen los parámetros estadísticos de las columnas del set
 describe(DfTrain)
 ```
 
-Puede observarse una discrepancia en el número de datos en *total_bedrooms*. Esto puede deberse a valores nulos o *NA*. Para verificar esto, se analiza la columna
+```{r}
+summary(DfTrain)
+```
+
+
+Puede observarse que la variable *total_bedrooms* posee 137 valores *NA*. Para verificar esto, se analiza la columna
 
 ```{r}
 sum(is.na(DfTrain$total_bedrooms))
@@ -289,3 +294,13 @@ TrainSUMedian <- cbind(id = TrainUMedian$id,TrainSUMedian,median_house_value = T
 ```{r}
 head(TrainSUMedian)
 ```
+Finalmente, se tiene un conjunto de datasets que pueden ser utilizdos para pruebas, los cuales son:
+
+* **TrainNoNa:** Dataset con los Na omitidos.
+* **TrainMedian:** Dataset con los Na sustituidos por la mediana de la distribución.
+* **TrainUNoNa:** Dataset con las dimensionales uniformes y con los Na omitidos.
+* **TrainUMedian:** Dataset con las dimensionales uniformes y con los Na sustituidos por la mediana de la distribución.
+* **TrainSNoNa:** Dataset estandarizado con los Na omitidos.
+* **TrainSMedian:** Dataset estandarizado con los Na sustituidos por la mediana de la distribución.
+* **TrainSUNoNa:** Dataset estandarizado, con dimensionales uniformes y con los Na omitidos.
+* **TrainSUMedian:** Dataset estandarizao, con dimensionales uniformes y con los Na sustituidos por la mediana de la distribución.
