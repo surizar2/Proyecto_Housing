@@ -304,3 +304,128 @@ Finalmente, se tiene un conjunto de datasets que pueden ser utilizdos para prueb
 * **TrainSMedian:** Dataset estandarizado con los Na sustituidos por la mediana de la distribución.
 * **TrainSUNoNa:** Dataset estandarizado, con dimensionales uniformes y con los Na omitidos.
 * **TrainSUMedian:** Dataset estandarizao, con dimensionales uniformes y con los Na sustituidos por la mediana de la distribución.
+
+## Prueba de modelos
+
+Antes de iniciar con la prueba de los modelos, es necesario acomodar el set de pruebas
+
+### Tratamiento set de pruebas
+Para este problema en particular, se dieron dos sets de datos, uno con datos de entrenamiento y otro con pruebas. Debido a que se desconoce cómo está el set de pruebas, se considera oportuno explorarlo un poco para determinar cómo debe ser tratado.
+#### Breve exploración
+```{r}
+str(DfTest)
+```
+```{r}
+summary(DfTest)
+```
+```{r}
+describe(DfTest)
+```
+Este set no contiene la variable a predecir *median_house_value*, ya que es la solución que debe hallarse y probarse en kaggle.
+
+Puede notarse que, de nuevo, hay *NAs* en la variable *total_bedrooms*, por lo que hay que trabajarlas. También se puede ver que los patrones estadísticos del set de pruebas son muy similares al set de entrenamiento. Esto puede verse mejor mediante las gráficas de densidad.
+
+```{r}
+DfnoCatT <- DfTest %>%
+  dplyr :: select(-c(id, ocean_proximity))
+```
+```{r}
+DfnoCatLongT <- DfnoCatT %>%
+  pivot_longer(colnames(DfnoCatT)) %>%
+  as.data.frame()
+
+ggplot(data = DfnoCatLongT, aes(x = value))+
+  geom_density()+
+  facet_wrap(~name, scales = 'free')
+```
+Visualizadas y determinadas las propiedades del set de pruebas, se procede a darle formatos acordes al set de entrneamiento, para que los modelos generados puedan ser validados con su correspondiente set de pruebas en el formato correcto.
+
+#### Cambio de categórica a numérica
+Para inicar, se convierte la variable categórica *ocean_proximity* a numérica
+
+```{r}
+DfTestC <- DfTest
+```
+
+```{r}
+DfTestC$ocean_proximity<- as.numeric(factor(DfTestC$ocean_proximity, levels = unique(DfTestC$ocean_proximity)))
+```
+
+#### Tratamiento de NAs
+En el caso de set de pruebas, no es posible omitir los *NAs*, ya que son combinaciones de variables que se desea predecir, por lo que solo se generará el set sustituyendo el valor *NA* por la mediana.
+
+
+```{r}
+### Set con la mediana sustituyendo los NAs
+TestMedian <- DfTestC
+```
+
+```{r}
+TestMedian$total_bedrooms <- ifelse(is.na(TestMedian$total_bedrooms),
+                                  median(TestMedian$total_bedrooms, na.rm = TRUE),
+                                  TestMedian$total_bedrooms)
+```
+
+
+#### Corrigiendo dimensionales
+Se hace el mismo tratamiento que en el set de entrenamiento para las variables *population*, *total_rooms* y *total_bedrooms*
+
+```{r}
+TestUMedian <- TestMedian
+```
+```{r}
+TestUMedian$population <- TestUMedian$population/TestUMedian$households
+TestUMedian$total_bedrooms <- TestUMedian$total_bedrooms/TestUMedian$households
+TestUMedian$total_rooms <- TestUMedian$total_rooms/TestUMedian$households
+```
+```{r}
+head(TestUMedian)
+```
+
+#### Estandarizando
+
+Se procede a estandarizar los datasets generados anteriormente
+
+```{r}
+### Set de pruebas sin dimensionales uniformes
+TestSMedian <- subset(TestMedian,select=-c(ocean_proximity, id))
+```
+```{r}
+TestSMedian <- data.frame(scale(TestSMedian))
+```
+```{r}
+TestSMedian <- cbind(id = TestMedian$id,TestSMedian, ocean_proximity = TestMedian$ocean_proximity)
+
+```
+```{r}
+head(TestSMedian)
+```
+
+```{r}
+### Set de pruebas con dimensionales uniformes
+TestSUMedian <- subset(TestUMedian,select=-c(ocean_proximity, id))
+```
+```{r}
+TestSUMedian <- data.frame(scale(TestSUMedian))
+```
+```{r}
+TestSUMedian <- cbind(id = TestUMedian$id,TestSUMedian, ocean_proximity = TestUMedian$ocean_proximity)
+
+```
+```{r}
+head(TestSUMedian)
+```
+De esta manera, se tienen los set de prueba para validar:
+
+* **TestMedian:** Set de datos con la mediana sustituyendo los *NA*.
+* **TestUMedian:** Set de datos con la mediana sustituyendo los *NA* y con las dimensionales uniformes.
+* **TestSMedian:** Set de datos estandarizado con la mediana sustituyendo los *NA*.
+* **TestSUMedian:** Set de datos estandarizado, con la mediana sustituyendo los *NA* y con dimensionales uniformes.
+
+### Modelos a elegir
+
+En la exploración de datos, se determinó que las variables del set de entrenamiento no poseen relaciones lineales, por lo que se desea probar los siguientes modelos:
+
+* Modelo 1
+* Modelo 2
+* Modelo 3
