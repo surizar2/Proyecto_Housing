@@ -1,0 +1,291 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+# Proyecto Econometría en R
+* Andrés Tejeda
+* Silvio Urizar
+* Víctor Carranza
+
+## Descripción
+
+## Carga y exploración de datos
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(psych)
+library(corrplot)
+library(RColorBrewer)
+library(fitdistrplus)
+library(tidyr)
+```
+### Carga
+
+
+Se inicia cargando los datos para el desarrollo
+
+```{r}
+DfTrain <- read.csv('train.csv')
+DfTest <- read.csv('test.csv')
+```
+
+### Exploración del set de entrenamiento
+Se procede a conocer el tipo de información y datos en este dataset:
+
+```{r}
+sample_n(DfTrain,size = 20)
+```
+```{r}
+str(DfTrain)
+```
+
+Se tiene que el set de entrenamiento se compone de 9 variables independientes, siendo la variable dependiente *median_house_value*, y las variables dependientes son:
+
+* **longitud:** coordenada de longitud de la ubicación
+* **latitud:** coordenada de latitud de la ubicación
+* **housing_median_age:** la edad mediana de las casas del sector
+* **total_rooms:** cantidad total de habitaciones que tienen las casas en el sector descrito
+* **total_bedrooms:** cantidad total de dormitorios que tienen las casas en el sector descrito
+* **population:** población estimada del sector descrito
+* **households:** cantidad de casas en el sector descrito
+* **median_income:** ingreso mediano anual por casa en decenas de miles de dólares en el sector descrito.
+* **median_house_value:** valor mediano de una vivienda en el sector descrito en dólares
+* **ocean_proximity:** descripción geográfico del sector en función de cuán cercano al mar se encuentra
+
+Al ver la descripción de las variables, es fácil notar que las dimensionales no son uniformes. Por ejemplo, *total_rooms*, *total_bedrooms* y *population* son variables que describen magnitudes por sector, mientras que *median_income* describen magnitudes por casa. Es recomendable que los datos tengan, en la manera de lo posible, uniformidad en las dimensionales.
+
+También se nota que los valores no están balanceados en este set de datos. Algunos están en decenas de miles, otros en unidades, algunos tienen datos con máximos y medias en los rangos de los miles, y otros en unidades. Esto puede dar problemas al momento de implementar un modelo.
+
+Puede notarse que la variable *ocean_proximity* es una variable de tipo categórica. Los valores que puede obtener son:
+```{r}
+unique(DfTrain$ocean_proximity)
+```
+También se obtienen los parámetros estadísticos de las columnas del set
+
+```{r}
+describe(DfTrain)
+```
+
+Puede observarse una discrepancia en el número de datos en *total_bedrooms*. Esto puede deberse a valores nulos o *NA*. Para verificar esto, se analiza la columna
+
+```{r}
+sum(is.na(DfTrain$total_bedrooms))
+```
+Estos valores nulos se trabajarán en la sección de limpieza de datos.
+
+Para obtener información sobre la variable a predecir, es muy conveniente conocer su distribución e información
+
+```{r}
+ggplot(data = DfTrain, aes(x = median_house_value))+
+geom_density(stat = 'density', col = 'orange4', fill = 'orange', lwd = 1)+
+  geom_vline(aes(xintercept = mean(median_house_value)), col = 'darkblue', lwd = 1, linetype = 'dashed') +
+  geom_vline(aes(xintercept = (mean(median_house_value)+ sd(median_house_value))), col = 'purple4', lwd = 0.9, linetype = 'dashed') +
+  geom_vline(aes(xintercept = (mean(median_house_value)- sd(median_house_value))), col = 'purple4', lwd = 0.9, linetype = 'dashed') +
+  theme_light() + ggtitle('Densidad median_house_value')+
+  geom_text(aes(mean(median_house_value),0,label = 'mu', vjust = -1), parse = TRUE) +
+  geom_text(aes((mean(median_house_value)- sd(median_house_value)),0,label = paste('mu', '-', 'sigma') , vjust = -1), parse = TRUE) +
+  geom_text(aes((mean(median_house_value)+ sd(median_house_value)),0,label = paste('mu', '+', 'sigma') , vjust = -1), parse = TRUE)
+```
+
+
+```{r}
+descdist(DfTrain$median_house_value, discrete = FALSE, boot = 1500)
+```
+Puede verse que la variable dependiente sigue aproximadamente una función beta. Sin embargo, hay valores en la cola de la distribución que la deforman. Estos podrían ser outliers. Esto se evaluará en la sección de filtrado de datos.
+
+
+También se puede obtener la densidad de los valores de las viviendas dependiendo de la variable categórica:
+
+```{r}
+ggplot(data = DfTrain, aes(x = median_house_value, col = ocean_proximity))+
+  geom_density(stat =  'density')
+```
+
+También se procede a graficar las densidades de todas las variables independientes no categóricas
+
+```{r}
+DfnoCat <- DfTrain %>%
+  dplyr :: select(-c(id,median_house_value, ocean_proximity))
+```
+```{r}
+DfnoCatLong <- DfnoCat %>%
+  pivot_longer(colnames(DfnoCat)) %>%
+  as.data.frame()
+
+ggplot(data = DfnoCatLong, aes(x = value))+
+  geom_density()+
+  facet_wrap(~name, scales = 'free')
+```
+Se observa que les densidades de *households*, *population*, *median_income*, *total_bedrooms*, y *total_rooms* son bastante similares. El restante de las variables no muestra alguna densidad que pueda catalogarse.
+
+### Correlación entre variables
+
+Siempre es una buena práctica obtener el índice de correlación entre las variables. Este se hará mediante un mapa de correlación. Se excluye la variable *ocean_proximity* por ser categórica
+
+```{r}
+DCor <- DfTrain %>%
+  dplyr:: select(-ocean_proximity)
+```
+```{r}
+DCor <- na.omit(DCor)
+pallete <- colorRampPalette(c('green3', 'orange3', 'orange2'))(50)
+corrplot(cor(DCor), p.mat =cor(DCor), type = 'lower', tl.srt = 5, tl.col = 'black',
+        col.lim = c(-1,1), col = pallete, insig = "p-value", sig.level = -1, pch.col = 'navyblue')
+```
+Puede observarse que, de todas las variables, únicamente *median_income* tiene una relación más o menos lineal con *median_house_value*, aunque esta tampoco es muy fuerte al tener un coeficiente de correlación de 0.69. Para observar mejor esto, se procede a realizar un scatterplot de ambas variables:
+
+```{r}
+ggplot(data = DfTrain, aes(x = median_income, y = median_house_value))+
+  geom_point(col = 'red3') +
+  theme_linedraw()+ ggtitle('Diagrama de dispersión de median_house_value vs median_income')
+```
+
+Fácilmente se nota que hay datos que son aproximadamente constantes en *median_house_value* = 500000. Estos son los datos que se ven en los análisis previos que alteran la forma de la distribución de la variable, y que posiblemente puedan ser outliers.
+
+### Conclusiones de la exploración
+* La variable a predecir parece tener una distribución aproximadamente beta.
+* La cola de la variable a predecir parece tener datos en forma de outliers.
+* No hay una relación lineal entre ninguna de las variables independientes y la variable a predecir.
+* Hay una correlación muy fuerte entre *households*, *total_rooms*, *total_bedrooms* y *population*.
+* Las dimensionales de las variables independientes no son uniformes.
+* Los valores de las variables independientes no se encuentran balanceados.
+## Tratamiento de datos
+Para optimizar los datos a trabajar, es necesario tratarlos. El tema más urgente a tratar es el tema de los datos nulos en *total_bedrooms*. Se tomarán distintas decisiones para esto
+
+## Limpieza de datos
+
+### Cambio de categórica
+Lo primero a realizar será el cambio de variable categórica a numérica
+```{r}
+DfTrainC <- DfTrain
+```
+```{r}
+DfTrainC$ocean_proximity<- as.numeric(factor(DfTrainC$ocean_proximity, levels = unique(DfTrainC$ocean_proximity)))
+```
+
+
+### Eliminación de NAs
+La primera y más sencilla es eliminar los valores *NA* del dataset
+```{r}
+TrainNoNa <- na.omit(DfTrainC)
+```
+### Sustitución de NAs
+La aproximación que se utilizará es sustituir el valor *NA* por la mediana de la distribución
+```{r}
+TrainMedian <- DfTrainC
+```
+
+```{r}
+TrainMedian$total_bedrooms <- ifelse(is.na(TrainMedian$total_bedrooms),
+                                  median(TrainMedian$total_bedrooms, na.rm = TRUE),
+                                  TrainMedian$total_bedrooms)
+```
+
+
+
+Para ver la diferencia en los datos, se grafican las densidades con *NA* y con la sustitución de la mediana
+
+```{r}
+ggplot(data = TrainNoNa, aes(x = total_bedrooms))+
+  geom_density(stat = 'density', col = 'cyan3', lwd = 1) +
+  geom_density(data = TrainMedian, aes(x = total_bedrooms, y = ..density..), col = 'red2', lwd = 1, linetype = 'dashed')
+```
+Puede notarse que ambas densidades son extremadamente similares.
+
+### Uniformidad de dimensionales
+
+Para tratar la uniformidad de las dimensionales, creará un dataset donde se dividirán las variables *total_bedrooms*, *population* y *total_rooms* entre la variable *households* para hacer más dimensionalmente uniforme el dataset. Se hará este procedimiento tanto con el dataset obtenido borrando los Na y con el que se sustituyó por la mediana.
+
+```{r}
+
+### Set con los NA anulados
+TrainUNoNa <- TrainNoNa
+```
+```{r}
+TrainUNoNa$population <- TrainUNoNa$population/TrainUNoNa$households
+TrainUNoNa$total_bedrooms <- TrainUNoNa$total_bedrooms/TrainUNoNa$households
+TrainUNoNa$total_rooms <- TrainUNoNa$total_rooms/TrainUNoNa$households
+```
+
+```{r}
+head(TrainUNoNa)
+```
+```{r}
+### Set con medianas agregadas
+
+TrainUMedian <- TrainMedian
+```
+```{r}
+TrainUMedian$population <- TrainUMedian$population/TrainUMedian$households
+TrainUMedian$total_bedrooms <- TrainUMedian$total_bedrooms/TrainUMedian$households
+TrainUMedian$total_rooms <- TrainUMedian$total_rooms/TrainUMedian$households
+```
+
+```{r}
+head(TrainUMedian)
+```
+
+### Estandarización de los datos
+
+Para corregir el desbalance de los datos, se elige estandarizarlos mediante z. Esto se hará para los 4 datasets anteriores. Lo que se estandariza es el set de variables independientes, salvo la categórica.
+
+```{r}
+### Estandarizando el dataset solo con NA omitidos
+TrainSNoNa <- subset(TrainNoNa,select=-c(median_house_value,ocean_proximity, id))
+```
+```{r}
+TrainSNoNa <- data.frame(scale(TrainSNoNa))
+```
+```{r}
+TrainSNoNa <- cbind(id = TrainNoNa$id,TrainSNoNa,median_house_value = TrainNoNa$median_house_value, ocean_proximity = TrainNoNa$ocean_proximity)
+
+```
+
+```{r}
+head(TrainSNoNa)
+```
+
+```{r}
+### Estandarizando el dataset solo con mediana agregada
+TrainSMedian <- subset(TrainMedian,select=-c(median_house_value,ocean_proximity, id))
+```
+```{r}
+TrainSMedian <- data.frame(scale(TrainSMedian))
+```
+```{r}
+TrainSMedian <- cbind(id = TrainMedian$id,TrainSMedian,median_house_value = TrainMedian$median_house_value, ocean_proximity = TrainMedian$ocean_proximity)
+
+```
+```{r}
+head(TrainSMedian)
+```
+```{r}
+### Estandarizando el dataset sin Na y uniforme
+TrainSUNoNa <- subset(TrainUNoNa,select=-c(median_house_value,ocean_proximity, id))
+```
+```{r}
+TrainSUNoNa <- data.frame(scale(TrainSUNoNa))
+```
+```{r}
+TrainSUNoNa <- cbind(id = TrainUNoNa$id,TrainSUNoNa,median_house_value = TrainUNoNa$median_house_value, ocean_proximity = TrainUNoNa$ocean_proximity)
+
+```
+```{r}
+head(TrainSUNoNa)
+```
+
+```{r}
+### Estandarizando el dataset con mediana agregada y uniforme
+TrainSUMedian <- subset(TrainUMedian,select=-c(median_house_value,ocean_proximity, id))
+```
+```{r}
+TrainSUMedian <- data.frame(scale(TrainSUMedian))
+```
+```{r}
+TrainSUMedian <- cbind(id = TrainUMedian$id,TrainSUMedian,median_house_value = TrainUMedian$median_house_value, ocean_proximity = TrainUMedian$ocean_proximity)
+
+```
+```{r}
+head(TrainSUMedian)
+```
