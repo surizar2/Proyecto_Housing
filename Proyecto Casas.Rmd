@@ -424,8 +424,53 @@ De esta manera, se tienen los set de prueba para validar:
 
 ### Modelos a elegir
 
-En la exploración de datos, se determinó que las variables del set de entrenamiento no poseen relaciones lineales, por lo que se desea probar los siguientes modelos:
+En la exploración de datos, se determinó que las variables del set de entrenamiento no poseen relaciones lineales, por lo que se considera conveniente utilizar los siguientes modelos y evaluar su rendimiento:
 
-* Modelo 1
-* Modelo 2
-* Modelo 3
+* XValidation
+* Random Forest
+
+### Random Forest
+Se utilizará un método de random forest regressor para este problema:
+
+```{r}
+library(randomForest)
+```
+```{r}
+ModelTrain <- TrainSUMedian %>%
+  dplyr :: select(-id)
+
+head(ModelTrain)
+```
+
+
+```{r}
+set.seed(42)
+
+Casas.rf <- randomForest( median_house_value ~., data = ModelTrain, ntree = 1000, mtry = 5, importance = TRUE, keep.forest = TRUE)
+```
+
+```{r}
+Casas.rf
+```
+```{r}
+plot(Casas.rf)
+```
+## Predicción de datos
+
+```{r}
+importance(Casas.rf)
+```
+```{r}
+ModelTest <- TestSUMedian %>%
+  dplyr :: select(-id)
+```
+```{r}
+ids <- TestSUMedian$id
+prediccion <- predict(object = Casas.rf, newdata = TestSUMedian)
+submit1<-data.frame(id=ids, median_house_value=prediccion)
+write.csv(submit1, 'submit1.csv', row.names = FALSE)
+```
+
+
+
+
