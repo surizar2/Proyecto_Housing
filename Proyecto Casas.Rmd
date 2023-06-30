@@ -19,6 +19,7 @@ library(corrplot)
 library(RColorBrewer)
 library(fitdistrplus)
 library(tidyr)
+library(caret)
 ```
 ### Carga
 
@@ -559,6 +560,12 @@ Se utilizará un método de random forest regressor para este problema:
 ```{r}
 library(randomForest)
 ```
+
+```{r}
+repeat_cv <- trainControl(method='repeatedcv', number=10, repeats=10)
+```
+
+
 ```{r}
 ModelTrain <- TrainUMean %>%
   dplyr :: select(-id)
@@ -566,11 +573,27 @@ ModelTrain <- TrainUMean %>%
 head(ModelTrain)
 ```
 
+```{r}
+Casas.rf <- train(
+        
+      
+        median_house_value~., 
+        
+        
+        data=ModelTrain, 
+        
+        
+        method='rf', 
+        
+        
+        trControl=repeat_cv,
+        )
+```
 
 ```{r}
-set.seed(0)
+#set.seed(42)
 
-Casas.rf <- randomForest( median_house_value ~., data = ModelTrain, ntree = 20, mtry = 5, importance = TRUE, keep.forest = TRUE)
+#Casas.rf <- randomForest( median_house_value ~., data = ModelTrain, ntree = 40, mtry = 3, importance = #TRUE, keep.forest = TRUE)
 ```
 
 ```{r}
