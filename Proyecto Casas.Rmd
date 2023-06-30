@@ -176,6 +176,8 @@ La primera y más sencilla es eliminar los valores *NA* del dataset
 TrainNoNa <- na.omit(DfTrainC)
 ```
 ### Sustitución de NAs
+
+#### Imputación de medianas
 La aproximación que se utilizará es sustituir el valor *NA* por la mediana de la distribución
 ```{r}
 TrainMedian <- DfTrainC
@@ -196,8 +198,29 @@ ggplot(data = TrainNoNa, aes(x = total_bedrooms))+
   geom_density(stat = 'density', col = 'cyan3', lwd = 1) +
   geom_density(data = TrainMedian, aes(x = total_bedrooms, y = ..density..), col = 'red2', lwd = 1, linetype = 'dashed')
 ```
+
 Puede notarse que ambas densidades son extremadamente similares.
 
+#### Imputación de medias
+
+Como una alternativa, se imputa la media
+
+```{r}
+TrainMean <- DfTrainC
+```
+
+```{r}
+TrainMean$total_bedrooms <- ifelse(is.na(TrainMean$total_bedrooms),
+                                  mean(TrainMean$total_bedrooms, na.rm = TRUE),
+                                  TrainMean$total_bedrooms)
+```
+
+
+```{r}
+ggplot(data = TrainNoNa, aes(x = total_bedrooms))+
+  geom_density(stat = 'density', col = 'purple4', lwd = 1) +
+  geom_density(data = TrainMean, aes(x = total_bedrooms, y = ..density..), col = 'orange2', lwd = 1, linetype = 'dashed')
+```
 ### Uniformidad de dimensionales
 
 Para tratar la uniformidad de las dimensionales, creará un dataset donde se dividirán las variables *total_bedrooms*, *population* y *total_rooms* entre la variable *households* para hacer más dimensionalmente uniforme el dataset. Se hará este procedimiento tanto con el dataset obtenido borrando los Na y con el que se sustituyó por la mediana.
@@ -229,6 +252,18 @@ TrainUMedian$total_rooms <- TrainUMedian$total_rooms/TrainUMedian$households
 
 ```{r}
 head(TrainUMedian)
+```
+```{r}
+### Set con media imputada
+TrainUMean <- TrainMean
+```
+```{r}
+TrainUMean$population <- TrainUMean$population/TrainUMean$households
+TrainUMean$total_bedrooms <- TrainUMean$total_bedrooms/TrainUMean$households
+TrainUMean$total_rooms <- TrainUMean$total_rooms/TrainUMean$households
+```
+```{r}
+head(TrainUMean)
 ```
 
 ### Estandarización de los datos
@@ -294,16 +329,51 @@ TrainSUMedian <- cbind(id = TrainUMedian$id,TrainSUMedian,median_house_value = T
 ```{r}
 head(TrainSUMedian)
 ```
+```{r}
+### Estandarizando el dataset solo con media agregada
+TrainSMean <- subset(TrainMean,select=-c(median_house_value,ocean_proximity, id))
+```
+```{r}
+TrainSMean <- data.frame(scale(TrainSMean))
+```
+```{r}
+TrainSMean <- cbind(id = TrainMean$id,TrainSMean,median_house_value = TrainMean$median_house_value, ocean_proximity = TrainMean$ocean_proximity)
+
+```
+```{r}
+head(TrainSMean)
+
+```
+
+```{r}
+### Estandarizando el dataset con mediana agregada y uniforme
+TrainSUMean <- subset(TrainUMean,select=-c(median_house_value,ocean_proximity, id))
+```
+```{r}
+TrainSUMean <- data.frame(scale(TrainSUMean))
+```
+```{r}
+TrainSUMean <- cbind(id = TrainUMean$id,TrainSUMean,median_house_value = TrainUMean$median_house_value, ocean_proximity = TrainUMean$ocean_proximity)
+
+```
+```{r}
+head(TrainSUMean)
+```
+
 Finalmente, se tiene un conjunto de datasets que pueden ser utilizdos para pruebas, los cuales son:
 
 * **TrainNoNa:** Dataset con los Na omitidos.
 * **TrainMedian:** Dataset con los Na sustituidos por la mediana de la distribución.
+* **TrainMean:** Dataset con la media imputada
 * **TrainUNoNa:** Dataset con las dimensionales uniformes y con los Na omitidos.
 * **TrainUMedian:** Dataset con las dimensionales uniformes y con los Na sustituidos por la mediana de la distribución.
+* **TrainUMean:** Dataset con las dimensionales uniformes y con la media imputada
 * **TrainSNoNa:** Dataset estandarizado con los Na omitidos.
 * **TrainSMedian:** Dataset estandarizado con los Na sustituidos por la mediana de la distribución.
+* **TrainSMean:** Dataset estandarizado con la media imputada
 * **TrainSUNoNa:** Dataset estandarizado, con dimensionales uniformes y con los Na omitidos.
 * **TrainSUMedian:** Dataset estandarizao, con dimensionales uniformes y con los Na sustituidos por la mediana de la distribución.
+* **TrainSUMean:** Dataset estandarizado, con dimensionles uniformes y con la media imputada
 
 ## Prueba de modelos
 
@@ -353,7 +423,7 @@ DfTestC$ocean_proximity<- as.numeric(factor(DfTestC$ocean_proximity, levels = un
 
 #### Tratamiento de NAs
 En el caso de set de pruebas, no es posible omitir los *NAs*, ya que son combinaciones de variables que se desea predecir, por lo que solo se generará el set sustituyendo el valor *NA* por la mediana.
-
+#### Imputando con mediana
 
 ```{r}
 ### Set con la mediana sustituyendo los NAs
@@ -365,7 +435,18 @@ TestMedian$total_bedrooms <- ifelse(is.na(TestMedian$total_bedrooms),
                                   median(TestMedian$total_bedrooms, na.rm = TRUE),
                                   TestMedian$total_bedrooms)
 ```
+#### Imputando con media
 
+```{r}
+### Set con la mediana sustituyendo los NAs
+TestMean <- DfTestC
+```
+
+```{r}
+TestMean$total_bedrooms <- ifelse(is.na(TestMean$total_bedrooms),
+                                  mean(TestMean$total_bedrooms, na.rm = TRUE),
+                                  TestMean$total_bedrooms)
+```
 
 #### Corrigiendo dimensionales
 Se hace el mismo tratamiento que en el set de entrenamiento para las variables *population*, *total_rooms* y *total_bedrooms*
@@ -381,13 +462,23 @@ TestUMedian$total_rooms <- TestUMedian$total_rooms/TestUMedian$households
 ```{r}
 head(TestUMedian)
 ```
-
+```{r}
+TestUMean <- TestMean
+```
+```{r}
+TestUMean$population <- TestUMean$population/TestUMean$households
+TestUMean$total_bedrooms <- TestUMean$total_bedrooms/TestUMean$households
+TestUMean$total_rooms <- TestUMean$total_rooms/TestUMean$households
+```
+```{r}
+head(TestUMean)
+```
 #### Estandarizando
 
 Se procede a estandarizar los datasets generados anteriormente
 
 ```{r}
-### Set de pruebas sin dimensionales uniformes
+### Set de pruebas sin dimensionales uniformes imputando con mediana
 TestSMedian <- subset(TestMedian,select=-c(ocean_proximity, id))
 ```
 ```{r}
@@ -402,6 +493,20 @@ head(TestSMedian)
 ```
 
 ```{r}
+### Set de pruebas sin dimensionales uniformes imputando con media
+TestSMean <- subset(TestMean,select=-c(ocean_proximity, id))
+```
+```{r}
+TestSMean <- data.frame(scale(TestSMean))
+```
+```{r}
+TestSMean <- cbind(id = TestMean$id,TestSMean, ocean_proximity = TestMean$ocean_proximity)
+
+```
+```{r}
+head(TestSMean)
+```
+```{r}
 ### Set de pruebas con dimensionales uniformes
 TestSUMedian <- subset(TestUMedian,select=-c(ocean_proximity, id))
 ```
@@ -415,12 +520,31 @@ TestSUMedian <- cbind(id = TestUMedian$id,TestSUMedian, ocean_proximity = TestUM
 ```{r}
 head(TestSUMedian)
 ```
+```{r}
+### Set de pruebas con dimensionales uniformes
+TestSUMean <- subset(TestUMean,select=-c(ocean_proximity, id))
+```
+```{r}
+TestSUMean <- data.frame(scale(TestSUMean))
+```
+```{r}
+TestSUMean <- cbind(id = TestUMean$id,TestSUMean, ocean_proximity = TestUMean$ocean_proximity)
+
+```
+```{r}
+head(TestSUMean)
+```
+
 De esta manera, se tienen los set de prueba para validar:
 
 * **TestMedian:** Set de datos con la mediana sustituyendo los *NA*.
 * **TestUMedian:** Set de datos con la mediana sustituyendo los *NA* y con las dimensionales uniformes.
 * **TestSMedian:** Set de datos estandarizado con la mediana sustituyendo los *NA*.
 * **TestSUMedian:** Set de datos estandarizado, con la mediana sustituyendo los *NA* y con dimensionales uniformes.
+* **TestMean:** Set de datos con la media sustituyendo los *NA*.
+* **TestUMean:** Set de datos con la media sustituyendo los *NA* y con las dimensionales uniformes.
+* **TestSMean:** Set de datos estandarizado con la media sustituyendo los *NA*.
+* **TestSUMean:** Set de datos estandarizado, con la media sustituyendo los *NA* y con dimensionales uniformes
 
 ### Modelos a elegir
 
@@ -436,7 +560,7 @@ Se utilizará un método de random forest regressor para este problema:
 library(randomForest)
 ```
 ```{r}
-ModelTrain <- TrainSUMedian %>%
+ModelTrain <- TrainUMean %>%
   dplyr :: select(-id)
 
 head(ModelTrain)
@@ -444,9 +568,9 @@ head(ModelTrain)
 
 
 ```{r}
-set.seed(42)
+set.seed(0)
 
-Casas.rf <- randomForest( median_house_value ~., data = ModelTrain, ntree = 1000, mtry = 5, importance = TRUE, keep.forest = TRUE)
+Casas.rf <- randomForest( median_house_value ~., data = ModelTrain, ntree = 20, mtry = 5, importance = TRUE, keep.forest = TRUE)
 ```
 
 ```{r}
@@ -461,12 +585,13 @@ plot(Casas.rf)
 importance(Casas.rf)
 ```
 ```{r}
-ModelTest <- TestSUMedian %>%
+ModelTest <- TestUMean %>%
   dplyr :: select(-id)
+head(ModelTest)
 ```
 ```{r}
-ids <- TestSUMedian$id
-prediccion <- predict(object = Casas.rf, newdata = TestSUMedian)
+ids <- TestUMean$id
+prediccion <- predict(object = Casas.rf, newdata = ModelTest)
 submit1<-data.frame(id=ids, median_house_value=prediccion)
 write.csv(submit1, 'submit1.csv', row.names = FALSE)
 ```
