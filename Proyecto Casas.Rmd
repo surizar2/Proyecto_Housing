@@ -7,6 +7,7 @@ output: html_notebook
 * Silvio Urizar
 * Víctor Carranza
 
+
 ## Descripción
 
 ## Carga y exploración de datos
@@ -20,6 +21,7 @@ library(RColorBrewer)
 library(fitdistrplus)
 library(tidyr)
 library(caret)
+library(fastDummies)
 ```
 ### Carga
 
@@ -167,7 +169,22 @@ Lo primero a realizar será el cambio de variable categórica a numérica
 DfTrainC <- DfTrain
 ```
 ```{r}
-DfTrainC$ocean_proximity<- as.numeric(factor(DfTrainC$ocean_proximity, levels = unique(DfTrainC$ocean_proximity)))
+DfTrainC <- dummy_cols(DfTrainC, select_columns = "ocean_proximity")
+DfTrainC <- DfTrainC %>%
+  dplyr :: select(-ocean_proximity)
+```
+
+```{r}
+DfTrainC
+```
+
+### Eliminación de Outliers
+
+Al haber analizado la gráfica de densidad de median_house_value, se miraba una anomalía en la cola de la distribución. Se ha eliminado esta
+
+```{r}
+DfTrainC <-  DfTrainC%>%
+  filter(median_house_value < 500001)
 ```
 
 
@@ -267,19 +284,34 @@ TrainUMean$total_rooms <- TrainUMean$total_rooms/TrainUMean$households
 head(TrainUMean)
 ```
 
+```{r}
+colnames(TrainMedian)
+```
+
 ### Estandarización de los datos
 
 Para corregir el desbalance de los datos, se elige estandarizarlos mediante z. Esto se hará para los 4 datasets anteriores. Lo que se estandariza es el set de variables independientes, salvo la categórica.
 
 ```{r}
+
 ### Estandarizando el dataset solo con NA omitidos
-TrainSNoNa <- subset(TrainNoNa,select=-c(median_house_value,ocean_proximity, id))
+TrainSNoNa <- subset(TrainNoNa,select=c(longitude, latitude, housing_median_age, total_rooms, total_bedrooms, population, households, median_income))
 ```
+
+```{r}
+
+## Obteniendo la media y desviación de las variables a estandarizar
+MeansNoNa <- colMeans(TrainSNoNa)
+SdNoNa <- sapply(TrainSNoNa,sd)
+```
+
 ```{r}
 TrainSNoNa <- data.frame(scale(TrainSNoNa))
 ```
+
+
 ```{r}
-TrainSNoNa <- cbind(id = TrainNoNa$id,TrainSNoNa,median_house_value = TrainNoNa$median_house_value, ocean_proximity = TrainNoNa$ocean_proximity)
+TrainSNoNa <- cbind(id = TrainNoNa$id,TrainSNoNa,median_house_value = TrainNoNa$median_house_value, ocean_proximity_1H_Ocean = TrainNoNa$`ocean_proximity_<1H OCEAN`, ocean_proximity_INLAND = TrainNoNa$ocean_proximity_INLAND, ocean_proximity_ISLAND = TrainNoNa$ocean_proximity_ISLAND, ocean_proximity_NEAR_BAY = TrainNoNa$`ocean_proximity_NEAR BAY`, ocean_proximity_NEAR_OCEAN = TrainNoNa$`ocean_proximity_NEAR OCEAN`)
 
 ```
 
@@ -288,28 +320,67 @@ head(TrainSNoNa)
 ```
 
 ```{r}
-### Estandarizando el dataset solo con mediana agregada
-TrainSMedian <- subset(TrainMedian,select=-c(median_house_value,ocean_proximity, id))
+### Estandarizando el dataset solo con mediana imputada
+TrainSMedian <- subset(TrainMedian,select=c(longitude, latitude, housing_median_age, total_rooms, total_bedrooms, population, households, median_income))
 ```
+
+```{r}
+### Media y varianza de variables a estandarizar
+MeansMedian <- colMeans(TrainSMedian)
+SDMedian <- sapply(TrainSMedian, sd)
+```
+
 ```{r}
 TrainSMedian <- data.frame(scale(TrainSMedian))
 ```
 ```{r}
-TrainSMedian <- cbind(id = TrainMedian$id,TrainSMedian,median_house_value = TrainMedian$median_house_value, ocean_proximity = TrainMedian$ocean_proximity)
+TrainSMedian <- cbind(id = TrainMedian$id,TrainSMedian,median_house_value = TrainMedian$median_house_value, ocean_proximity_1H_Ocean = TrainMedian$`ocean_proximity_<1H OCEAN`, ocean_proximity_INLAND = TrainMedian$ocean_proximity_INLAND, ocean_proximity_ISLAND = TrainMedian$ocean_proximity_ISLAND, ocean_proximity_NEAR_BAY = TrainMedian$`ocean_proximity_NEAR BAY`, ocean_proximity_NEAR_OCEAN = TrainMedian$`ocean_proximity_NEAR OCEAN`)
 
 ```
+
 ```{r}
 head(TrainSMedian)
 ```
+
+
+```{r}
+### Estandarizando el dataset solo con imputación de media
+TrainSMean <- subset(TrainMean,select=c(longitude, latitude, housing_median_age, total_rooms, total_bedrooms, population, households, median_income))
+```
+
+```{r}
+### Media y varianza de variables a estandarizar
+MeansMean <- colMeans(TrainSMean)
+SDMean <- sapply(TrainSMean, sd)
+```
+
+```{r}
+TrainSMean <- data.frame(scale(TrainSMean))
+```
+```{r}
+TrainSMean <- cbind(id = TrainMean$id,TrainSMean,median_house_value = TrainMean$median_house_value, ocean_proximity_1H_Ocean = TrainMean$`ocean_proximity_<1H OCEAN`, ocean_proximity_INLAND = TrainMean$ocean_proximity_INLAND, ocean_proximity_ISLAND = TrainMean$ocean_proximity_ISLAND, ocean_proximity_NEAR_BAY = TrainMean$`ocean_proximity_NEAR BAY`, ocean_proximity_NEAR_OCEAN = TrainMean$`ocean_proximity_NEAR OCEAN`)
+
+```
+```{r}
+head(TrainSMean)
+```
+
+
+
 ```{r}
 ### Estandarizando el dataset sin Na y uniforme
-TrainSUNoNa <- subset(TrainUNoNa,select=-c(median_house_value,ocean_proximity, id))
+TrainSUNoNa <- subset(TrainUNoNa,select=c(longitude, latitude, housing_median_age, total_rooms, total_bedrooms, population, households, median_income))
+```
+```{r}
+### Media y varianza de variables a estandarizar
+MeansUNoNa <- colMeans(TrainSUNoNa)
+SDUNoNa <- sapply(TrainSUNoNa, sd)
 ```
 ```{r}
 TrainSUNoNa <- data.frame(scale(TrainSUNoNa))
 ```
 ```{r}
-TrainSUNoNa <- cbind(id = TrainUNoNa$id,TrainSUNoNa,median_house_value = TrainUNoNa$median_house_value, ocean_proximity = TrainUNoNa$ocean_proximity)
+TrainSUNoNa <- cbind(id = TrainUNoNa$id,TrainSUNoNa,median_house_value = TrainUNoNa$median_house_value, ocean_proximity_1H_Ocean = TrainUNoNa$`ocean_proximity_<1H OCEAN`, ocean_proximity_INLAND = TrainUNoNa$ocean_proximity_INLAND, ocean_proximity_ISLAND = TrainUNoNa$ocean_proximity_ISLAND, ocean_proximity_NEAR_BAY = TrainUNoNa$`ocean_proximity_NEAR BAY`, ocean_proximity_NEAR_OCEAN = TrainUNoNa$`ocean_proximity_NEAR OCEAN`)
 
 ```
 ```{r}
@@ -318,43 +389,44 @@ head(TrainSUNoNa)
 
 ```{r}
 ### Estandarizando el dataset con mediana agregada y uniforme
-TrainSUMedian <- subset(TrainUMedian,select=-c(median_house_value,ocean_proximity, id))
+TrainSUMedian <- subset(TrainUMedian,select=c(longitude, latitude, housing_median_age, total_rooms, total_bedrooms, population, households, median_income))
 ```
+
+```{r}
+### Media y varianza de variables a estandarizar
+MeansUMedian <- colMeans(TrainSUMedian)
+SDUMedian <- sapply(TrainSUMedian, sd)
+```
+
 ```{r}
 TrainSUMedian <- data.frame(scale(TrainSUMedian))
 ```
 ```{r}
-TrainSUMedian <- cbind(id = TrainUMedian$id,TrainSUMedian,median_house_value = TrainUMedian$median_house_value, ocean_proximity = TrainUMedian$ocean_proximity)
+TrainSUMedian <- cbind(id = TrainUMedian$id,TrainSUMedian,median_house_value = TrainUMedian$median_house_value, ocean_proximity_1H_Ocean = TrainUMedian$`ocean_proximity_<1H OCEAN`, ocean_proximity_INLAND = TrainUMedian$ocean_proximity_INLAND, ocean_proximity_ISLAND = TrainUMedian$ocean_proximity_ISLAND, ocean_proximity_NEAR_BAY = TrainUMedian$`ocean_proximity_NEAR BAY`, ocean_proximity_NEAR_OCEAN = TrainUMedian$`ocean_proximity_NEAR OCEAN`)
 
 ```
+
 ```{r}
 head(TrainSUMedian)
 ```
-```{r}
-### Estandarizando el dataset solo con media agregada
-TrainSMean <- subset(TrainMean,select=-c(median_house_value,ocean_proximity, id))
-```
-```{r}
-TrainSMean <- data.frame(scale(TrainSMean))
-```
-```{r}
-TrainSMean <- cbind(id = TrainMean$id,TrainSMean,median_house_value = TrainMean$median_house_value, ocean_proximity = TrainMean$ocean_proximity)
 
-```
-```{r}
-head(TrainSMean)
-
-```
 
 ```{r}
 ### Estandarizando el dataset con mediana agregada y uniforme
-TrainSUMean <- subset(TrainUMean,select=-c(median_house_value,ocean_proximity, id))
+TrainSUMean <- subset(TrainUMean,select=c(longitude, latitude, housing_median_age, total_rooms, total_bedrooms, population, households, median_income))
 ```
+
+```{r}
+### Media y varianza de variables a estandarizar
+MeansUMean <- colMeans(TrainSUMean)
+SDUMean <- sapply(TrainSUMean, sd)
+```
+
 ```{r}
 TrainSUMean <- data.frame(scale(TrainSUMean))
 ```
 ```{r}
-TrainSUMean <- cbind(id = TrainUMean$id,TrainSUMean,median_house_value = TrainUMean$median_house_value, ocean_proximity = TrainUMean$ocean_proximity)
+TrainSUMean <- cbind(id = TrainUMean$id,TrainSUMean,median_house_value = TrainUMean$median_house_value, ocean_proximity_1H_Ocean = TrainUMean$`ocean_proximity_<1H OCEAN`, ocean_proximity_INLAND = TrainUMean$ocean_proximity_INLAND, ocean_proximity_ISLAND = TrainUMean$ocean_proximity_ISLAND, ocean_proximity_NEAR_BAY = TrainUMean$`ocean_proximity_NEAR BAY`, ocean_proximity_NEAR_OCEAN = TrainUMean$`ocean_proximity_NEAR OCEAN`)
 
 ```
 ```{r}
@@ -418,9 +490,18 @@ Para inicar, se convierte la variable categórica *ocean_proximity* a numérica
 DfTestC <- DfTest
 ```
 
+
 ```{r}
-DfTestC$ocean_proximity<- as.numeric(factor(DfTestC$ocean_proximity, levels = unique(DfTestC$ocean_proximity)))
+DfTestC <- dummy_cols(DfTestC, select_columns = "ocean_proximity")
+DfTestC <- DfTestC %>%
+  dplyr :: select(-ocean_proximity)
+
 ```
+
+```{r}
+head(DfTestC)
+```
+
 
 #### Tratamiento de NAs
 En el caso de set de pruebas, no es posible omitir los *NAs*, ya que son combinaciones de variables que se desea predecir, por lo que solo se generará el set sustituyendo el valor *NA* por la mediana.
@@ -439,7 +520,7 @@ TestMedian$total_bedrooms <- ifelse(is.na(TestMedian$total_bedrooms),
 #### Imputando con media
 
 ```{r}
-### Set con la mediana sustituyendo los NAs
+### Set con la media sustituyendo los NAs
 TestMean <- DfTestC
 ```
 
@@ -453,6 +534,7 @@ TestMean$total_bedrooms <- ifelse(is.na(TestMean$total_bedrooms),
 Se hace el mismo tratamiento que en el set de entrenamiento para las variables *population*, *total_rooms* y *total_bedrooms*
 
 ```{r}
+### Datset con mediana imputada
 TestUMedian <- TestMedian
 ```
 ```{r}
@@ -464,6 +546,7 @@ TestUMedian$total_rooms <- TestUMedian$total_rooms/TestUMedian$households
 head(TestUMedian)
 ```
 ```{r}
+### Dataset con media imputada
 TestUMean <- TestMean
 ```
 ```{r}
@@ -479,58 +562,110 @@ head(TestUMean)
 Se procede a estandarizar los datasets generados anteriormente
 
 ```{r}
-### Set de pruebas sin dimensionales uniformes imputando con mediana
-TestSMedian <- subset(TestMedian,select=-c(ocean_proximity, id))
+data.frame(MeansMedian)['latitude',]
 ```
-```{r}
-TestSMedian <- data.frame(scale(TestSMedian))
-```
-```{r}
-TestSMedian <- cbind(id = TestMedian$id,TestSMedian, ocean_proximity = TestMedian$ocean_proximity)
 
+
+```{r}
+### Set de pruebas sin dimensionales uniformes imputando con mediana
+TestSMedian <- TestMedian
 ```
+```{r}
+TestSMedian$longitude <- (TestSMedian$longitude - data.frame(MeansMedian)['longitude',])/data.frame(SDMedian)['longitude',]
+TestSMedian$latitude <- (TestSMedian$latitude - data.frame(MeansMedian)['latitude',])/data.frame(SDMedian)['latitude',]
+```
+
+```{r}
+TestSMedian$housing_median_age <- (TestSMedian$housing_median_age - data.frame(MeansMedian)['housing_median_age',])/data.frame(SDMedian)['housing_median_age',]
+
+TestSMedian$total_rooms <- (TestSMedian$total_rooms - data.frame(MeansMedian)['total_rooms',])/data.frame(SDMedian)['total_rooms',]
+
+TestSMedian$total_bedrooms <- (TestSMedian$total_bedrooms - data.frame(MeansMedian)['total_bedrooms',])/data.frame(SDMedian)['total_bedrooms',]
+
+TestSMedian$population <- (TestSMedian$population - data.frame(MeansMedian)['population',])/data.frame(SDMedian)['population',]
+
+TestSMedian$households <- (TestSMedian$households - data.frame(MeansMedian)['households',])/data.frame(SDMedian)['households',]
+
+TestSMedian$median_income <- (TestSMedian$median_income - data.frame(MeansMedian)['median_income',])/data.frame(SDMedian)['median_income',]
+```
+
+
 ```{r}
 head(TestSMedian)
 ```
 
 ```{r}
 ### Set de pruebas sin dimensionales uniformes imputando con media
-TestSMean <- subset(TestMean,select=-c(ocean_proximity, id))
+TestSMean <- TestMean
 ```
 ```{r}
-TestSMean <- data.frame(scale(TestSMean))
+TestSMean$longitude <- (TestSMean$longitude - data.frame(MeansMean)['longitude',])/data.frame(SDMean)['longitude',]
+TestSMean$latitude <- (TestSMean$latitude - data.frame(MeansMean)['latitude',])/data.frame(SDMean)['latitude',]
 ```
-```{r}
-TestSMean <- cbind(id = TestMean$id,TestSMean, ocean_proximity = TestMean$ocean_proximity)
 
+```{r}
+TestSMean$housing_median_age <- (TestSMean$housing_median_age - data.frame(MeansMean)['housing_median_age',])/data.frame(SDMean)['housing_median_age',]
+
+TestSMean$total_rooms <- (TestSMean$total_rooms - data.frame(MeansMean)['total_rooms',])/data.frame(SDMean)['total_rooms',]
+
+TestSMean$total_bedrooms <- (TestSMean$total_bedrooms - data.frame(MeansMean)['total_bedrooms',])/data.frame(SDMean)['total_bedrooms',]
+
+TestSMean$population <- (TestSMean$population - data.frame(MeansMean)['population',])/data.frame(SDMean)['population',]
+
+TestSMean$households <- (TestSMean$households - data.frame(MeansMean)['households',])/data.frame(SDMean)['households',]
+
+TestSMean$median_income <- (TestSMean$median_income - data.frame(MeansMean)['median_income',])/data.frame(SDMean)['median_income',]
 ```
 ```{r}
 head(TestSMean)
 ```
 ```{r}
 ### Set de pruebas con dimensionales uniformes
-TestSUMedian <- subset(TestUMedian,select=-c(ocean_proximity, id))
+TestSUMedian <- TestUMedian
 ```
 ```{r}
-TestSUMedian <- data.frame(scale(TestSUMedian))
+TestSUMedian$longitude <- (TestSUMedian$longitude - data.frame(MeansUMedian)['longitude',])/data.frame(SDUMedian)['longitude',]
+TestSUMedian$latitude <- (TestSUMedian$latitude - data.frame(MeansUMedian)['latitude',])/data.frame(SDUMedian)['latitude',]
 ```
-```{r}
-TestSUMedian <- cbind(id = TestUMedian$id,TestSUMedian, ocean_proximity = TestUMedian$ocean_proximity)
 
+```{r}
+TestSUMedian$housing_median_age <- (TestSUMedian$housing_median_age - data.frame(MeansUMedian)['housing_median_age',])/data.frame(SDUMedian)['housing_median_age',]
+
+TestSUMedian$total_rooms <- (TestSUMedian$total_rooms - data.frame(MeansUMedian)['total_rooms',])/data.frame(SDUMedian)['total_rooms',]
+
+TestSUMedian$total_bedrooms <- (TestSUMedian$total_bedrooms - data.frame(MeansUMedian)['total_bedrooms',])/data.frame(SDUMedian)['total_bedrooms',]
+
+TestSUMedian$population <- (TestSUMedian$population - data.frame(MeansUMedian)['population',])/data.frame(SDUMedian)['population',]
+
+TestSUMedian$households <- (TestSUMedian$households - data.frame(MeansUMedian)['households',])/data.frame(SDUMedian)['households',]
+
+TestSUMedian$median_income <- (TestSUMedian$median_income - data.frame(MeansUMedian)['median_income',])/data.frame(SDUMedian)['median_income',]
 ```
+
 ```{r}
 head(TestSUMedian)
 ```
 ```{r}
-### Set de pruebas con dimensionales uniformes
-TestSUMean <- subset(TestUMean,select=-c(ocean_proximity, id))
+### Set de pruebas con dimensionales uniformes media imputada
+TestSUMean <- TestUMean
 ```
 ```{r}
-TestSUMean <- data.frame(scale(TestSUMean))
+TestSUMean$longitude <- (TestSUMean$longitude - data.frame(MeansUMean)['longitude',])/data.frame(SDUMean)['longitude',]
+TestSUMean$latitude <- (TestSUMean$latitude - data.frame(MeansUMean)['latitude',])/data.frame(SDUMean)['latitude',]
 ```
-```{r}
-TestSUMean <- cbind(id = TestUMean$id,TestSUMean, ocean_proximity = TestUMean$ocean_proximity)
 
+```{r}
+TestSUMean$housing_median_age <- (TestSUMean$housing_median_age - data.frame(MeansUMean)['housing_median_age',])/data.frame(SDUMean)['housing_median_age',]
+
+TestSUMean$total_rooms <- (TestSUMean$total_rooms - data.frame(MeansUMean)['total_rooms',])/data.frame(SDUMean)['total_rooms',]
+
+TestSUMean$total_bedrooms <- (TestSUMean$total_bedrooms - data.frame(MeansUMean)['total_bedrooms',])/data.frame(SDUMean)['total_bedrooms',]
+
+TestSUMean$population <- (TestSUMean$population - data.frame(MeansUMean)['population',])/data.frame(SDUMean)['population',]
+
+TestSUMean$households <- (TestSUMean$households - data.frame(MeansUMean)['households',])/data.frame(SDUMean)['households',]
+
+TestSUMean$median_income <- (TestSUMean$median_income - data.frame(MeansUMean)['median_income',])/data.frame(SDUMean)['median_income',]
 ```
 ```{r}
 head(TestSUMean)
@@ -562,7 +697,7 @@ library(randomForest)
 ```
 
 ```{r}
-repeat_cv <- trainControl(method='repeatedcv', number=10, repeats=10)
+repeat_cv <- trainControl(method='repeatedcv', number=5, repeats=5)
 ```
 
 
@@ -586,7 +721,7 @@ Casas.rf <- train(
         method='rf', 
         
         
-        trControl=repeat_cv,
+        trControl=repeat_cv
         )
 ```
 
